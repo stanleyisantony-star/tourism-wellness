@@ -19,10 +19,6 @@ jobs:
         run: |
           pip install -r tourism_project/deployment/requirements.txt
           pip install datasets # datasets is needed for register_dataset.py
-      - name: Ensure data directory and copy tourism.csv
-        run: |
-          mkdir -p tourism_project/data
-          cp tourism.csv tourism_project/data/tourism.csv # Assuming tourism.csv is at repo root
       - name: Upload Raw Dataset to Hugging Face Hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
