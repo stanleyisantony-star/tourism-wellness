@@ -1,0 +1,87 @@
+
+name: Tourism Project Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  register-dataset:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v3 # Use v3 for broader compatibility
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          pip install -r tourism_project/deployment/requirements.txt
+          pip install datasets # datasets is needed for register_dataset.py
+      - name: Ensure data directory and copy tourism.csv
+        run: |
+          mkdir -p tourism_project/data
+          cp tourism.csv tourism_project/data/tourism.csv # Assuming tourism.csv is at repo root
+      - name: Upload Raw Dataset to Hugging Face Hub
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python scripts/register_dataset.py
+
+  data-prep:
+    needs: register-dataset
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          pip install -r tourism_project/deployment/requirements.txt
+          pip install datasets # datasets is needed for data_preparation.py
+      - name: Run Data Preparation
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python scripts/data_preparation.py
+
+  model-training:
+    needs: data-prep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          pip install -r tourism_project/deployment/requirements.txt
+          pip install mlflow datasets # mlflow and datasets are needed for train_and_register_model.py
+      - name: Train and Register Model
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python scripts/train_and_register_model.py
+
+  deploy-hosting:
+    needs: [model-training]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          pip install -r tourism_project/deployment/requirements.txt
+          pip install datasets # datasets is needed for deploy_to_space.py to download model
+      - name: Push files to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python scripts/deploy_to_space.py
